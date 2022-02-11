@@ -89,6 +89,8 @@ runs:
             install_github(sandpaper_version)
             cat("::endgroup::\n")
           }
+          install_github("sabaferdous12/varnish")
+          install_github("sabaferdous12/sandpaper")
         shell: Rscript {0}
 
       - name: Session info
