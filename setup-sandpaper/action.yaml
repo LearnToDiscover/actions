@@ -89,10 +89,15 @@ runs:
             install_github(sandpaper_version)
             cat("::endgroup::\n")
           }
-          install_github("sabaferdous12/varnish")
-          install_github("sabaferdous12/sandpaper")
         shell: Rscript {0}
-
+      - name: Install from forks
+        run: |
+          cat("::group::Install our own forks\n")
+          devtools::install_github("sabaferdous12/varnish")
+          devtools::install_github("sabaferdous12/sandpaper")
+          cat("::endgroup::\n")
+        shell: Rscript {0}
+       
       - name: Session info
         run: |
           cat("::group::Session info\n")
