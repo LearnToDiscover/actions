@@ -90,9 +90,12 @@ runs:
             cat("::endgroup::\n")
           }
         shell: Rscript {0}
-        
+
       - name: Install from forks
         run: |
+          pkgs <- package_deps('devtools', dependencies = TRUE)
+          update(pkgs, upgrade = "always")
+     
           cat("::group::Install our own forks\n")
           devtools::install_github("sabaferdous12/varnish")
           devtools::install_github("sabaferdous12/sandpaper")
