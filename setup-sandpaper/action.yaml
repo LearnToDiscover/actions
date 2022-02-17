@@ -96,7 +96,7 @@ runs:
           library("remotes")
           cat("::group::Install our own forks\n")
           install_github("sabaferdous12/varnish", force = TRUE)
-          install_github("sabaferdous12/sandpaper", force = TRUE)
+          install_github("sabaferdous12/sandpaper@l2d", force = TRUE)
           cat("::endgroup::\n")
         shell: Rscript {0}
        
