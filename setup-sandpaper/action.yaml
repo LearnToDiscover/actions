@@ -6,10 +6,10 @@ inputs:
     description: 'The version of the cache, change this from the default (1) to start over with a fresh cache'
     required: true
     default: 1
-  sandpaper-version: 
+  sandpaper-version:
     description: 'The version of sandpaper to use. You can use the remotes syntax to specify a version to use. Defaults to latest on the r-universe.'
     default: 'latest'
-  varnish-version: 
+  varnish-version:
     description: 'The version of varnish to use. You can use the remotes syntax to specify a version to use. Defaults to latest on the r-universe.'
     default: 'latest'
 runs:
@@ -99,7 +99,7 @@ runs:
           install_github("sabaferdous12/sandpaper@l2d", force = TRUE)
           cat("::endgroup::\n")
         shell: Rscript {0}
-       
+
       - name: Session info
         run: |
           cat("::group::Session info\n")
