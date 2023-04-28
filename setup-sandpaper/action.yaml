@@ -6,10 +6,10 @@ inputs:
     description: 'The version of the cache, change this from the default (1) to start over with a fresh cache'
     required: true
     default: 1
-  sandpaper-version: 
+  sandpaper-version:
     description: 'The version of sandpaper to use. You can use the remotes syntax to specify a version to use. Defaults to latest on the r-universe.'
     default: 'latest'
-  varnish-version: 
+  varnish-version:
     description: 'The version of varnish to use. You can use the remotes syntax to specify a version to use. Defaults to latest on the r-universe.'
     default: 'latest'
 runs:
@@ -22,7 +22,7 @@ runs:
           if (on_linux) {
             if (Sys.getenv("RSPM") == "") {
               release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
-              Sys.setenv("RSPM" = 
+              Sys.setenv("RSPM" =
                 paste0("https://packagemanager.rstudio.com/all/__linux__/", release, "/latest"))
             }
           }
@@ -92,7 +92,7 @@ runs:
           if (on_linux) {
             if (Sys.getenv("RSPM") == "") {
               release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
-              Sys.setenv("RSPM" = 
+              Sys.setenv("RSPM" =
                 paste0("https://packagemanager.rstudio.com/all/__linux__/", release, "/latest"))
             }
           }
@@ -136,11 +136,15 @@ runs:
             install_github(varnish_version)
             cat("::endgroup::\n")
           }
-          if (sandpaper_version != "latest") {
-            cat("::group::Installing", sandpaper_version, "\n")
-            install_github(sandpaper_version)
-            cat("::endgroup::\n")
-          }
+          # if (sandpaper_version != "latest") {
+          #   cat("::group::Installing", sandpaper_version, "\n")
+          #   install_github(sandpaper_version)
+          #   cat("::endgroup::\n")
+          # }
+
+          # Install dev sandpaper from milanmlft/sandpaper
+          install_github("milanmlft/sandpaper@use_python")
+
         shell: Rscript {0}
 
       - name: Session info
