@@ -91,7 +91,7 @@ runs:
             py_version <- renv:::renv_lockfile_load(".")$Python$Version
             if (is.null(py_version)) py_version <- ""
           }
-        shell: RScript {0}
+        shell: Rscript {0}
 
       # Set up Python only if required
       - name: "Set up Python"
