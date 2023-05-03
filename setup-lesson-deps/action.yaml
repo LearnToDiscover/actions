@@ -92,7 +92,7 @@ runs:
             py_version <- renv:::renv_lockfile_load(".")$Python$Version
             if (is.null(py_version)) py_version <- ""
           }
-          cat("py-version:", py_version, sep = "", append = TRUE)
+          cat("py-version=", py_version, sep = "", append = TRUE)
         shell: Rscript {0}
 
       # Set up Python only if required
