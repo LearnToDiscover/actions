@@ -89,6 +89,7 @@ runs:
           wd <- '${{ github.workspace }}'
           has_lock <- file.exists(file.path(wd, 'renv'))
           if (has_lock) {
+            renv::load(wd)
             py_version <- renv:::renv_lockfile_load(".")$Python$Version
             if (is.null(py_version)) py_version <- ""
           }
