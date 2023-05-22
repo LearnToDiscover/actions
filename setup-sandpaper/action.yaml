@@ -136,15 +136,11 @@ runs:
             install_github(varnish_version)
             cat("::endgroup::\n")
           }
-          # if (sandpaper_version != "latest") {
-          #   cat("::group::Installing", sandpaper_version, "\n")
-          #   install_github(sandpaper_version)
-          #   cat("::endgroup::\n")
-          # }
-
-          # Install dev sandpaper from milanmlft/sandpaper
-          install_github("milanmlft/sandpaper@use_python")
-
+          if (sandpaper_version != "latest") {
+            cat("::group::Installing", sandpaper_version, "\n")
+            install_github(sandpaper_version)
+            cat("::endgroup::\n")
+          }
         shell: Rscript {0}
 
       - name: Session info
