@@ -32,14 +32,14 @@ runs:
             if (Sys.getenv("RSPM") == "") {
               release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
               Sys.setenv("RSPM" =
-                paste0("https://packagemanager.rstudio.com/all/__linux__/", release, "/latest"))
+                paste0("https://packagemanager.posit.com/all/__linux__/", release, "/latest"))
             }
           }
           repos <- list(
             RSPM        = Sys.getenv("RSPM"),
             carpentries = "https://carpentries.r-universe.dev/",
             archive     = "https://carpentries.github.io/drat/",
-            CRAN        = "https://cran.rstudio.com"
+            CRAN        = "https://cran.posit.com"
           )
           options(pak.no_extra_messages = TRUE, repos = repos)
           cat("Repositories Used")
@@ -112,14 +112,14 @@ runs:
             if (Sys.getenv("RSPM") == "") {
               release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
               Sys.setenv("RSPM" =
-                paste0("https://packagemanager.rstudio.com/all/__linux__/", release, "/latest"))
+                paste0("https://packagemanager.posit.com/all/__linux__/", release, "/latest"))
             }
           }
           repos <- list(
             RSPM        = Sys.getenv("RSPM"),
             carpentries = "https://carpentries.r-universe.dev/",
             archive     = "https://carpentries.github.io/drat/",
-            CRAN        = "https://cran.rstudio.com"
+            CRAN        = "https://cran.posit.com"
           )
           Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
           options(pak.no_extra_messages = TRUE, repos = repos)
