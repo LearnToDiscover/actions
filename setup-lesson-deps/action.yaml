@@ -39,7 +39,7 @@ runs:
             RSPM        = Sys.getenv("RSPM"),
             carpentries = "https://carpentries.r-universe.dev/",
             archive     = "https://carpentries.github.io/drat/",
-            CRAN        = "https://cran.rstudio.com"
+            CRAN        = "https://cran.posit.com"
           )
           options(pak.no_extra_messages = TRUE, repos = repos)
           cat("Repositories Used")
@@ -82,6 +82,28 @@ runs:
             vise::ci_sysreqs(renv::paths$lockfile(), execute = TRUE)
           }
 
+      # Get Python version from lockfile
+      - name: "Get Python version"
+        id: get-py-version
+        run: |
+          py_version <- ""
+          wd <- '${{ github.workspace }}'
+          has_lock <- file.exists(file.path(wd, 'renv'))
+          if (has_lock) {
+            renv::load(wd)
+            py_version <- renv:::renv_lockfile_load(".")$Python$Version
+            if (is.null(py_version)) py_version <- ""
+          }
+          cat("py-version=", py_version, file = Sys.getenv("GITHUB_OUTPUT"), sep = "", append = TRUE)
+        shell: Rscript {0}
+
+      # Set up Python only if required
+      - name: "Set up Python"
+        if: ${{ steps.get-py-version.outputs.py-version }} != ''
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ steps.get-py-version.outputs.py-version }}
+
       - name: "Fortify Local {renv} Packages"
         shell: Rscript {0}
         run: |
@@ -98,7 +120,7 @@ runs:
             RSPM        = Sys.getenv("RSPM"),
             carpentries = "https://carpentries.r-universe.dev/",
             archive     = "https://carpentries.github.io/drat/",
-            CRAN        = "https://cran.rstudio.com"
+            CRAN        = "https://cran.posit.com"
           )
           Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
           options(pak.no_extra_messages = TRUE, repos = repos)

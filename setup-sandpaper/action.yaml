@@ -22,7 +22,7 @@ runs:
           if (on_linux) {
             if (Sys.getenv("RSPM") == "") {
               release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
-              Sys.setenv("RSPM" = 
+              Sys.setenv("RSPM" =
                 paste0("https://packagemanager.posit.co/all/__linux__/", release, "/latest"))
             }
           }
@@ -92,7 +92,7 @@ runs:
           if (on_linux) {
             if (Sys.getenv("RSPM") == "") {
               release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
-              Sys.setenv("RSPM" = 
+              Sys.setenv("RSPM" =
                 paste0("https://packagemanager.posit.co/all/__linux__/", release, "/latest"))
             }
           }
