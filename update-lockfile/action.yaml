@@ -34,25 +34,48 @@ runs:
   using: "composite"
   steps:
       - name: "Restore {renv} Cache"
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.11
         with:
           path: ${{ env.RENV_PATHS_ROOT }}
           key: ${{ runner.os }}-${{ inputs.cache-version }}-renv-${{ hashFiles('**/renv.lock') }}
           restore-keys:
             ${{ runner.os }}-${{ inputs.cache-version }}-renv-
 
+      - name: "Check for and/or update renv/sandbox ignore"
+        shell: bash
+        run: |
+          if [ $(grep 'renv/sandbox' .gitignore) ]; then
+            :
+          else
+            printf 'renv/sandbox\n' >> .gitignore
+          fi
+
       - name: "Setup System Dependencies"
         shell: Rscript {0}
         run: |
           req <- function(pkg) {
             if (!requireNamespace(pkg, quietly = TRUE)) 
-              install.packages(pkg, repos = "https://cran.rstudio.com")
+            install.packages(pkg, repos = c("https://carpentries.r-universe.dev", "https://cran.rstudio.com"))
           }
           wd <- '${{ github.workspace }}'
           has_lock <- file.exists(file.path(wd, 'renv'))
           if (Sys.info()[["sysname"]] == "Linux" && has_lock) {
             req("renv")
             req("remotes")
+            rmts <- asNamespace("remotes")
+            # extract the function 
+            sov <- rmts$supported_os_versions 
+            # if 22.04 is not present, we need to modify the function
+            if (!grepl("22.04", body(sov)[2])) {
+              unlockBinding("supported_os_versions", rmts)
+              # modify the list in the body to include 22.04
+              vers <- eval(parse(text = as.character(body(sov)[2])))
+              vers$ubuntu <- c(vers$ubuntu, "22.04")
+              # replace the body
+              body(sov)[2] <- list(str2lang(paste(capture.output(dput(vers)), collapse = "")))
+              # replace the function in the namespace
+              rmts$supported_os_versions <- sov
+            }
             req("desc")
             remotes::install_github("zkamvar/vise")
             Sys.setenv("RENV_PROFILE" = "lesson-requirements")
@@ -75,6 +98,20 @@ runs:
           # load packages needed for ci_sysreqs
           library(desc)
           library(remotes)
+          rmts <- asNamespace("remotes")
+          # extract the function 
+          sov <- rmts$supported_os_versions 
+          # if 22.04 is not present, we need to modify the function
+          if (!grepl("22.04", body(sov)[2])) {
+            unlockBinding("supported_os_versions", rmts)
+            # modify the list in the body to include 22.04
+            vers <- eval(parse(text = as.character(body(sov)[2])))
+            vers$ubuntu <- c(vers$ubuntu, "22.04")
+            # replace the body
+            body(sov)[2] <- list(str2lang(paste(capture.output(dput(vers)), collapse = "")))
+            # replace the function in the namespace
+            rmts$supported_os_versions <- sov
+          }
           vise:::ci_update(profile = "${{ inputs.profile }}",
             update = "${{ inputs.update }}",
             repos = "${{ inputs.repos }}")

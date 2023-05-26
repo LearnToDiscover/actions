@@ -17,39 +17,67 @@ runs:
   steps:
       - name: Install pak and query dependencies
         run: |
-          cat("::group::Install remotes\n")
-          options(
-            pak.no_extra_messages = TRUE,
-            repos = c(
-              carpentries = "https://carpentries.r-universe.dev/",
-              archive     = "https://carpentries.github.io/drat/",
-              CRAN        = "https://cran.rstudio.com"
-            )
+          cat("::group::Register Repositories\n")
+          on_linux <- Sys.info()[["sysname"]] == "Linux"
+          if (on_linux) {
+            if (Sys.getenv("RSPM") == "") {
+              release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
+              Sys.setenv("RSPM" = 
+                paste0("https://packagemanager.posit.co/all/__linux__/", release, "/latest"))
+            }
+          }
+          repos <- list(
+            RSPM        = Sys.getenv("RSPM"),
+            carpentries = "https://carpentries.r-universe.dev/",
+            archive     = "https://carpentries.github.io/drat/",
+            CRAN        = "https://cran.rstudio.com"
           )
+          options(pak.no_extra_messages = TRUE, repos = repos)
+          cat("Repositories Used")
+          print(getOption("repos"))
+          cat("::endgroup::\n")
+
+          cat("::group::Install remotes\n")
           install.packages('remotes')
           deps <- remotes::package_deps("sandpaper", dependencies = TRUE)
           saveRDS(deps, ".github/r-depends.rds")
+          cat("::group::Install remotes\n")
         shell: Rscript {0}
 
       - name: Get R and OS version
         id: get-version
         run: |
-          cat("::set-output name=os-version::", sessionInfo()$running, "\n", sep = "")
-          cat("::set-output name=r-version::", R.Version()$version.string, "\n", sep = "")
-          cat("::endgroup::\n")
+          cat("os-version=", sessionInfo()$running, "\n", file = Sys.getenv("GITHUB_OUTPUT"), sep = "", append = TRUE)
+          cat("r-version=", if (grepl("development", rv <- R.Version()$version.string)) as.character(getRversion()) else rv, "\n", file = Sys.getenv("GITHUB_OUTPUT"), sep = "", append = TRUE)
         shell: Rscript {0}
 
       - name: Install apt dependencies for Ubuntu
         id: run-apt
         shell: bash
         run: |
-          sudo apt-get install -y \
-           libxslt-dev \
-           $(curl https://carpentries.r-universe.dev/stats/sysdeps 2> /dev/null | jq -r '.headers[0] | select(. != null)') 2> /dev/null \
-          || echo "Not on Ubuntu"
+          sudo apt update || exit 0
+          curl https://carpentries.r-universe.dev/stats/sysdeps 2> /dev/null \
+          | jq -r '.headers[0] | select(. != null)' 2> /dev/null \
+          > ${{ runner.temp }}/sysdeps.txt
+          if [[ `wc -l < ${{ runner.temp }}/sysdeps.txt` -gt 0 ]]; then
+            echo 'sysdeps acquired'
+          else
+            echo 'fetching sysdeps from descriptions'
+            curl https://carpentries.r-universe.dev/stats/descriptions \
+            | jq -r '._builder.sysdeps | .[].headers | select(. != null)' 2> /dev/null \
+            > ${{ runner.temp }}/sysdeps.txt
+          fi
+          if [[ `wc -l < ${{ runner.temp }}/sysdeps.txt` -eq 0 ]]; then
+            echo "::warn::System dependencies could not be acquired. Builds may fail"
+            exit 1
+          else
+            echo "found sysdeps: $(cat ${{ runner.temp }}/sysdeps.txt)"
+          fi
+          printf "libxslt-dev\n" >> ${{ runner.temp }}/sysdeps.txt
+          sudo xargs apt-get install --fix-missing -y < ${{ runner.temp }}/sysdeps.txt || echo "Not on Ubuntu"
 
       - name: Restore R package cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.11
         with:
           path: |
             ${{ env.R_LIBS_USER }}/*
@@ -59,31 +87,55 @@ runs:
 
       - name: Install dependencies
         run: |
+          cat("::group::Register Repositories\n")
+          on_linux <- Sys.info()[["sysname"]] == "Linux"
+          if (on_linux) {
+            if (Sys.getenv("RSPM") == "") {
+              release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
+              Sys.setenv("RSPM" = 
+                paste0("https://packagemanager.posit.co/all/__linux__/", release, "/latest"))
+            }
+          }
+          repos <- list(
+            RSPM        = Sys.getenv("RSPM"),
+            carpentries = "https://carpentries.r-universe.dev/",
+            archive     = "https://carpentries.github.io/drat/",
+            CRAN        = "https://cran.rstudio.com"
+          )
+          options(pak.no_extra_messages = TRUE, repos = repos)
+          cat("Repositories Used")
+          print(getOption("repos"))
+          cat("::endgroup::\n")
+
           cat("::group::Install dependencies\n")
           on_linux <- Sys.info()[["sysname"]] == "Linux"
-          options(
-            pak.no_extra_messages = TRUE,
-            repos = c(
-              carpentries = "https://carpentries.r-universe.dev/",
-              archive     = "https://carpentries.github.io/drat/",
-              CRAN        = "https://cran.rstudio.com"
-            )
-          )
-          if (on_linux) {
-            options(repos = c(RSPM = Sys.getenv("RSPM"), getOption("repos")))
-          }
           library("remotes")
           pkgs <- package_deps('sandpaper', dependencies = TRUE)
-          pkgs$diff[pkgs$package == "tinkr"] <- -1
+          print(pkgs)
           update(pkgs, upgrade = "always")
           cat("::endgroup::\n")
           varnish_version <- '${{ inputs.varnish-version }}'
+          sandpaper_version <- '${{ inputs.sandpaper-version }}'
+          cfg <- if (file.exists("config.yaml")) readLines("config.yaml") else character(0)
+          get_version <- function(x, key = "varnish") {
+            res <- x[grepl(paste0("^", key, "\\s?:"), x)]
+            if (length(res)) {
+              res <- trimws(strsplit(res, ":")[[1]][2])
+              if (grepl("^[0-9]", res)) {
+                res <- paste0("carpentries/", key, "@", res)
+              }
+            } else {
+              res <- "latest"
+            }
+            res
+          }
+          varnish_version <- get_version(cfg, key = "varnish")
+          sandpaper_version <- get_version(cfg, key = "sandpaper")
           if (varnish_version != "latest") {
             cat("::group::Installing", varnish_version, "\n")
             install_github(varnish_version)
             cat("::endgroup::\n")
           }
-          sandpaper_version <- '${{ inputs.sandpaper-version }}'
           if (sandpaper_version != "latest") {
             cat("::group::Installing", sandpaper_version, "\n")
             install_github(sandpaper_version)

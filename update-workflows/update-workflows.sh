@@ -36,20 +36,13 @@ CURRENT=$(cat .github/workflows/sandpaper-version.txt)
 # Fetch upstream version from the API if we don't have that information
 if [[ ${UPSTREAM} == 'current' ]]; then
   UPSTREAM=$(curl -L ${SOURCE}/packages/sandpaper/)
-  UPSTREAM=$(echo ${UPSTREAM} | grep '[.]' | sed -E -e 's/[^0-9.]//g')
+  UPSTREAM=$(echo ${UPSTREAM} | jq -r .[1].Version)
 elif [[ ${SOURCE} == 'https://carpentries.r-universe.dev' ]]; then
   SOURCE=https://carpentries.github.io/drat
 fi
 
 # Create a temporary directory for the sandpaper resource files to land in
-if [[ -d ${TMPDIR} ]]; then
-  TMP="${TMPDIR}/sandpaper-${RANDOM}"
-elif [[ -d /tmp/ ]]; then
-  TMP="/tmp/sandpaper-${RANDOM}"
-else
-  TMP="../sandpaper-${RANDOM}"
-fi
-mkdir -p ${TMP}
+TMP=$(mktemp -d)
 
 # Show the version inforamtion
 echo "::group::Version Information"
@@ -76,8 +69,9 @@ if [[ ${CURRENT} != ${UPSTREAM} ]]; then
   echo "::endgroup::"
   NEEDS_UPDATE=$(git status --porcelain)
   if [[ ${NEEDS_UPDATE} ]]; then
-    echo "::set-output name=old::$(echo ${CURRENT})"
-    echo "::set-output name=new::$(echo ${UPSTREAM})"
+    echo "old=$(echo ${CURRENT})" >> $GITHUB_OUTPUT
+    echo "new=$(echo ${UPSTREAM})" >> $GITHUB_OUTPUT
+    echo "date=$(date --utc -Iminutes)" >> $GITHUB_OUTPUT
     echo "Updating version number to ${UPSTREAM}"
     echo ${UPSTREAM} > .github/workflows/sandpaper-version.txt
   else

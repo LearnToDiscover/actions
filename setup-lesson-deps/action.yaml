@@ -9,33 +9,74 @@ inputs:
 runs:
   using: "composite"
   steps:
+      - name: Get R and OS version
+        id: get-version
+        run: |
+          cat("os-version=", sessionInfo()$running, "\n", file = Sys.getenv("GITHUB_OUTPUT"), sep = "", append = TRUE)
+          cat("r-version=", if (grepl("development", rv <- R.Version()$version.string)) as.character(getRversion()) else rv, "\n", file = Sys.getenv("GITHUB_OUTPUT"), sep = "", append = TRUE)
+        shell: Rscript {0}
+
       - name: "Restore {renv} Cache"
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.11
         with:
           path: ${{ env.RENV_PATHS_ROOT }}
-          key: ${{ runner.os }}-${{ inputs.cache-version }}-renv-${{ hashFiles('**/renv.lock') }}
-          restore-keys:
-            ${{ runner.os }}-${{ inputs.cache-version }}-renv-
+          key: renv-${{ steps.get-version.outputs.os-version }}-${{ steps.get-version.outputs.r-version }}-${{inputs.cache-version }}-${{ hashFiles('**/renv.lock') }}
+          restore-keys: renv-${{ steps.get-version.outputs.os-version }}-${{ steps.get-version.outputs.r-version }}-${{inputs.cache-version }}-
 
       - name: "Setup System Dependencies"
         shell: Rscript {0}
         run: |
+          cat("::group::Register Repositories\n")
+          on_linux <- Sys.info()[["sysname"]] == "Linux"
+          if (on_linux) {
+            if (Sys.getenv("RSPM") == "") {
+              release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
+              Sys.setenv("RSPM" =
+                paste0("https://packagemanager.posit.co/all/__linux__/", release, "/latest"))
+            }
+          }
+          repos <- list(
+            RSPM        = Sys.getenv("RSPM"),
+            carpentries = "https://carpentries.r-universe.dev/",
+            archive     = "https://carpentries.github.io/drat/",
+            CRAN        = "https://cran.rstudio.com"
+          )
+          options(pak.no_extra_messages = TRUE, repos = repos)
+          cat("Repositories Used")
+          print(getOption("repos"))
+          cat("::endgroup::\n")
           # Set up system dependencies
-          req <- function(pkg) {
-            if (!requireNamespace(pkg, quietly = TRUE)) 
-              install.packages(pkg, repos = "https://cran.rstudio.com")
+          req <- function(pkg, ...) {
+            if (!requireNamespace(pkg, quietly = TRUE)) {
+              install.packages(pkg, ...)
+            }
           }
           wd <- '${{ github.workspace }}'
           has_lock <- file.exists(file.path(wd, 'renv'))
           if (Sys.info()[["sysname"]] == "Linux" && has_lock) {
             req("renv")
             req("remotes")
+            rmts <- asNamespace("remotes")
+            # extract the function
+            sov <- rmts$supported_os_versions
+            # if 22.04 is not present, we need to modify the function
+            if (!grepl("22.04", body(sov)[2])) {
+              unlockBinding("supported_os_versions", rmts)
+              # modify the list in the body to include 22.04
+              vers <- eval(parse(text = as.character(body(sov)[2])))
+              vers$ubuntu <- c(vers$ubuntu, "22.04")
+              # replace the body
+              body(sov)[2] <- list(str2lang(paste(capture.output(dput(vers)), collapse = "")))
+              # replace the function in the namespace
+              rmts$supported_os_versions <- sov
+            }
             req("desc")
             remotes::install_github("zkamvar/vise")
             if (file.exists("DESCRIPTION")) {
               file.rename("DESCRIPTION", "DESCRIPTION.bak")
             }
             Sys.setenv("RENV_PROFILE" = "lesson-requirements")
+            Sys.setenv("RSPM_ROOT" = "https://packagemanager.posit.co")
             vise::lock2desc(renv::paths$lockfile(), desc = "${{ github.workspace }}/DESCRIPTION")
             writeLines(readLines("${{ github.workspace }}/DESCRIPTION"))
             vise::ci_sysreqs(renv::paths$lockfile(), execute = TRUE)
@@ -44,17 +85,41 @@ runs:
       - name: "Fortify Local {renv} Packages"
         shell: Rscript {0}
         run: |
+          cat("::group::Register Repositories\n")
+          on_linux <- Sys.info()[["sysname"]] == "Linux"
+          if (on_linux) {
+            if (Sys.getenv("RSPM") == "") {
+              release <- system("lsb_release -c | awk '{print $2}'", intern = TRUE)
+              Sys.setenv("RSPM" =
+                paste0("https://packagemanager.posit.co/all/__linux__/", release, "/latest"))
+            }
+          }
+          repos <- list(
+            RSPM        = Sys.getenv("RSPM"),
+            carpentries = "https://carpentries.r-universe.dev/",
+            archive     = "https://carpentries.github.io/drat/",
+            CRAN        = "https://cran.rstudio.com"
+          )
+          Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
+          options(pak.no_extra_messages = TRUE, repos = repos)
+          cat("Repositories Used")
+          print(getOption("repos"))
+          cat("::endgroup::\n")
+
           # Fortify local {renv} packages
+          cat("::group::Fortify local {renv} packages\n")
           wd <- '${{ github.workspace }}'
           req <- function(pkg) {
-            if (!requireNamespace(pkg, quietly = TRUE)) 
-              install.packages(pkg, repos = "https://cran.rstudio.com")
+            if (!requireNamespace(pkg, quietly = TRUE))
+              install.packages(pkg)
           }
           if (file.exists("DESCRIPTION")) {
             req("remotes")
             remotes::install_deps()
           }
+          cat("::endgroup::\n")
           if (file.exists(file.path(wd, 'renv'))) {
+            cat("::group::Fortify local {renv} packages\n")
             if (file.exists("DESCRIPTION.bak")) {
               file.rename("DESCRIPTION.bak", "DESCRIPTION")
             } else {
@@ -62,10 +127,13 @@ runs:
             }
             req("renv")
             Sys.setenv("RENV_PROFILE" = "lesson-requirements")
-            if (Sys.info()[["sysname"]] == "Linux") {
-              options(repos = c(RSPM = Sys.getenv("RSPM"), getOption("repos")))
-            }
-            sandpaper::manage_deps(path = wd, quiet = FALSE)
+            tryCatch(sandpaper::manage_deps(path = wd, quiet = FALSE),
+              error = function(e) {
+                iss <- "https://github.com/rstudio/renv/issues/1184"
+                cli::cli_alert_danger("run failed... attempting to re-run (see {.url {iss}} for details.")
+                sandpaper::manage_deps(path = wd, quiet = FALSE)
+            })
+            cat("::endgroup::\n")
           } else {
             writeLines("Package cache not used")
           }
