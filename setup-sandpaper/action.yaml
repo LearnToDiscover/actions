@@ -103,6 +103,8 @@ runs:
             CRAN        = "https://cran.rstudio.com"
           )
           options(pak.no_extra_messages = TRUE, repos = repos)
+          # Set Bioconductor mirror in case we need any Bioc packages
+          options(BioC_mirror = "https://packagemanager.posit.co/bioconductor")
           cat("Repositories Used")
           print(getOption("repos"))
           cat("::endgroup::\n")
