@@ -32,6 +32,8 @@ runs:
             archive     = "https://carpentries.github.io/drat/",
             CRAN        = "https://cran.rstudio.com"
           )
+          # Set Bioconductor mirror in case we need any Bioc packages
+          options(BioC_mirror = "https://packagemanager.posit.co/bioconductor")
           options(pak.no_extra_messages = TRUE, repos = repos)
           cat("Repositories Used")
           print(getOption("repos"))
