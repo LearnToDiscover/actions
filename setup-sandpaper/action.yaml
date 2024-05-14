@@ -166,15 +166,6 @@ runs:
           }
         shell: Rscript {0}
 
-      - name: Install from forks
-        run: |
-          library("remotes")
-          cat("::group::Install our own forks\n")
-          install_github("LearnToDiscover/varnish", force = TRUE)
-          install_github("LearnToDiscover/sandpaper@l2d", force = TRUE)
-          cat("::endgroup::\n")
-        shell: Rscript {0}
-
       - name: Session info
         run: |
           cat("::group::Session info\n")
