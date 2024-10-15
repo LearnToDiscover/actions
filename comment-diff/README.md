@@ -1,6 +1,6 @@
 # Comment on Pull Request
 
-This action will add a comment to a pull request and will continue to update the
+This action will add a comment to a pull request and will continue to update
 the comment as changes are made to the pull request. 
 
 ## Inputs
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v2
       - id: comment-diff
         name: "PR Comment"
-        uses: carpentries/actions/comment-diff@main
+        uses: LearnToDiscover/actions/comment-diff@l2d
         with:
           pr: 6
           body: ":heavy_check_mark: The ID for this run is `${{ github.run_id }}`"
